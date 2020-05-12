@@ -62,11 +62,11 @@ data {
     int<lower=0, upper=1> Q[n_tot]; // species:cluster
     
     // data & covariates
-    vector[n_tot] sp_cov1; //species covariate 1
-    vector[n_tot] sp_cov2; //species covariate 2
-    vector[n_tot] pt_cov1; //point covariate 1
-    vector[n_tot] pt_cov2; //point covariate 2
-    row_vector[n_visit_max] vis_cov1[n_tot]; //visit covariate 1
+    vector[n_tot] sp_cov1; // species covariate 1
+    vector[n_tot] sp_cov2; // species covariate 2
+    vector[n_tot] pt_cov1; // point covariate 1
+    vector[n_tot] pt_cov2; // point covariate 2
+    row_vector[n_visit_max] vis_cov1[n_tot]; // visit covariate 1
     int<lower=0, upper=1> det_data[n_tot, n_visit_max]; // detection history
     
     // grainsize for reduce_sum 
