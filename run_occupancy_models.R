@@ -7,8 +7,6 @@ library(cmdstanr)
 # 
 # 
 # bufferclip_data <- flattened_data[flattened_data$distance_updated < 150000, ]
-# n_cores <- n_chains <- 1
-# threads_per_chain <- 3
 # bufferclip_data_stan <- list(n_species = nrow(species),
 #                              n_visit = 4,
 #                              n_pt = nrow(sites),
@@ -20,6 +18,9 @@ library(cmdstanr)
 #                              grainsize = ceiling(nrow(bufferclip_data)/threads_per_chain))
 # 
 # saveRDS(bufferclip_data_stan, file = '/Users/jacobsocolar/Dropbox/Work/biogeographicMSOM/bufferclip_data_stan.RDS')
+
+n_cores <- n_chains <- 1
+threads_per_chain <- 3
 
 bufferclip_data_stan <- readRDS('/Users/jacobsocolar/Dropbox/Work/biogeographicMSOM/bufferclip_data_stan.RDS')
 
