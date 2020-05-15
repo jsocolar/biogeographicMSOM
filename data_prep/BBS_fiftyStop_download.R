@@ -1,3 +1,5 @@
+# Download 50-stop BBS data, species file, and routes file
+
 setwd('/Users/JacobSocolar/Desktop/useful_datasets/BBS/BBS_50_stop')
 
 filenames <- paste0('Fifty', 1:10, '.zip')

@@ -18,7 +18,7 @@ functions{
                      int[] id_sp_cl, 
                      int[] Q) {
         // indexing vars
-        int len = end - start + 1;
+        int len = end - start;
         int r0 = start - 1;
         
         vector[len] lp;
@@ -26,8 +26,8 @@ functions{
         row_vector[4] logit_theta[len];
         for (r in 1:len) {
             // calculate psi & theta
-            logit_psi[r] = b0[id_sp[r0+r]] + b1[id_sp_cl[r0+r]] + b4[id_sp[r0+r]]*pt_cov1[r0+r];
-            logit_theta[r] = d0[id_sp[r0+r]] + d2*sp_cov1[r0+r] + d5[id_sp[r0+r]]*vis_cov1[r0+r];
+            logit_psi[r] = b0[id_sp[r0+r]]; //+ b1[id_sp_cl[r0+r]] + b4[id_sp[r0+r]]*pt_cov1[r0+r];
+            logit_theta[r] = d0[id_sp[r0+r]]; //+ d2*sp_cov1[r0+r] + d5[id_sp[r0+r]]*vis_cov1[r0+r];
             // likelihood
             if (Q[r0 + r] == 1) 
                 lp[r] = log_inv_logit(logit_psi[r]) +

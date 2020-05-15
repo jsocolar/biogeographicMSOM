@@ -30,7 +30,7 @@ n_cluster <- 30
 ppc <- 3
 n_point <- n_cluster*ppc
 n_species <- 32
-n_visit <- rep(4, n_point)
+n_visit <- rep(5, n_point)
 print(paste0("nrow: ", n_species*n_point))
 
 # Define covariates
@@ -118,7 +118,7 @@ for(i in 1:n_point){
 Q <- apply(det_data, c(1,3), function(x){return(as.numeric(sum(x) > 0))})
 
 stan.data_J <- list(n_point = n_point, n_species = n_species, 
-                    n_cluster = n_cluster, n_visit = 4,
+                    n_cluster = n_cluster, n_visit = 5,
                     det_data = det_data, 
                     Q = Q, 
                     clusterID = clusterID, 
@@ -129,7 +129,7 @@ stan.data_J <- list(n_point = n_point, n_species = n_species,
 # Format for Stan ----
 det_df <- apply(det_data, 3, as_data_frame) %>%
     bind_rows(., .id="id_species") %>%
-    rename(det_1 = V1, det_2 = V2, det_3 = V3, det_4 = V4) %>%
+    rename(det_1 = V1, det_2 = V2, det_3 = V3, det_4 = V4, det_5 = V5) %>%
     mutate(id_species = as.numeric(id_species),
            id_point = rep(1:n_point, n_species), 
            id_cluster = clusterID[id_point], 
@@ -139,20 +139,21 @@ det_df <- apply(det_data, 3, as_data_frame) %>%
            vis_cov1_2 = vis_cov1[id_point, 2], 
            vis_cov1_3 = vis_cov1[id_point, 3],
            vis_cov1_4 = vis_cov1[id_point, 4], 
+           vis_cov1_5 = vis_cov1[id_point, 5], 
            sp_cov1 = sp_cov1[id_species], 
            sp_cov2 = sp_cov2[id_species], 
            pt_cov1 = pt_cov1[id_point], 
            pt_cov2 = pt_cov2[id_point]) %>%
-    mutate(Q = rowSums(select(.,det_1, det_2, det_3, det_4)) > 0) %>%
+    mutate(Q = rowSums(select(.,det_1, det_2, det_3, det_4, det_5)) > 0) %>%
     arrange(desc(Q), id_species, id_point)
 
 stan_data <- list(
-    n_visit = 4, 
+    n_visit = 5, 
     n_species = length(unique(det_df$id_species)),
     n_sp_cl = length(unique(det_df$id_sp_cl)),
     n_sp_pt = length(unique(det_df$id_sp_pt)),
     n_pt = length(unique(det_df$id_point)),
-    n_visit_max = 4, 
+    n_visit_max = 5, 
     n_tot = nrow(det_df),
     n_1 = sum(det_df$Q),
     id_pt = det_df$id_point,
@@ -166,11 +167,12 @@ stan_data <- list(
     sp_cov2 = det_df$sp_cov2,
     pt_cov1 = det_df$pt_cov1,
     pt_cov2 = det_df$pt_cov2,
-    vis_cov1 = as.matrix(det_df[,paste0("vis_cov1_", 1:4)]),
-    det_data = as.matrix(det_df[,paste0("det_", 1:4)]), 
+    vis_cov1 = as.matrix(det_df[,paste0("vis_cov1_", 1:5)]),
+    det_data = as.matrix(det_df[,paste0("det_", 1:5)]), 
     Q = det_df$Q, 
     grainsize = 2880)
 
+setwd('/Users/jacobsocolar/Dropbox/Work/Code/biogeographicMSOM')
 # Run ragged model ----
 mod_R <- cmdstan_model("stan_files/occupancyMod_ragged.stan")
 time_R <- system.time(samps_R <- mod_R$sample(data = stan_data,
@@ -183,22 +185,22 @@ time_R <- system.time(samps_R <- mod_R$sample(data = stan_data,
 # number of threads be sufficient??
 set_num_threads(1)
 mod_P <- cmdstan_model("stan_files/occupancyMod_ragged_parallel.stan", 
-                       threads=TRUE)
+                       threads=F)
 time_1 <- system.time(samps_1 <- mod_P$sample(data = stan_data,
                                               num_chains = num_chains,
                                               num_cores = num_chains))
 
 # Run 2 thread ----
-stan_data$grainsize <- 1440
-set_num_threads(2)
+stan_data$grainsize <- 720
+set_num_threads(4)
 mod_P <- cmdstan_model("stan_files/occupancyMod_ragged_parallel.stan",
                        threads=TRUE)
 time_2 <- system.time(samps_2 <- mod_P$sample(data = stan_data,
                                               num_chains = num_chains,
                                               num_cores = num_chains))
 # Run 4 thread ----
-stan_data$grainsize <- 720
-set_num_threads(4)
+stan_data$grainsize <- 500
+set_num_threads(5)
 mod_P <- cmdstan_model("stan_files/occupancyMod_ragged_parallel.stan",
                        threads=TRUE)
 time_4 <- system.time(samps_4 <- mod_P$sample(data = stan_data,
