@@ -2,7 +2,7 @@
 library(cmdstanr)
 library(posterior)
 
-# # The next three lines only need to be run once.
+# # The next three lines only need to be run (in order) once.
 # source('/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/data_prep/bbs_import.R')
 # source('/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/data_prep/range_maps.R')
 # source('/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/data_prep/format_for_occupancy.R')
@@ -46,7 +46,7 @@ bufferclip_data_stan <- list(n_species = max(flattened_data$sp_id),
                              id_sp = bufferclip_data$sp_id,
                              Q = bufferclip_data$Q,
                              vis_cov1 = matrix(data = rep(c(1,2,4,5), each = nrow(bufferclip_data)), ncol=4),
-                             det_data = bufferclip_data[,c(1,2,4,5)],
+                             det_data = bufferclip_data[,c(1,2,4,5)],    # We withold visit 3 for validation
                              grainsize = 1)
 
 n_cores <- n_chains <- 4
@@ -71,3 +71,26 @@ set_num_threads(2)
 bbs_naive_fit <- bbs_bufferclip$sample(data = naive_data_stan, num_warmup = 1000, num_samples = 2000,
                                             num_chains = n_chains, num_cores = n_cores)
 saveRDS(bbs_naive_fit, 'bbs_naive_fit.RDS')
+
+
+
+##### Class 2 #####
+bbs_distance <- cmdstan_model("/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/stan_files/distance_BBS.stan",
+                                threads = T, force_recompile = T)
+
+# linear distance
+lindist_data_stan <-list(n_species = max(flattened_data$sp_id),
+                       n_visit = 4,
+                       n_pt = length(unique(flattened_data$site)),
+                       n_tot = nrow(flattened_data),
+                       id_sp = flattened_data$sp_id,
+                       Q = flattened_data$Q,
+                       site_cov1 = as.vector(scale(flattened_data$distance_updated)),
+                       vis_cov1 = matrix(data = rep(c(1,2,4,5), each = nrow(flattened_data)), ncol=4),
+                       det_data = flattened_data[,c(1,2,4,5)],
+                       grainsize = 1)
+
+n_cores <- n_chains <- 4
+set_num_threads(2)
+bbs_lindist_fit <- bbs_distance$sample(data = lindist_data_stan, num_warmup = 1000, num_samples = 2000,
+                                       num_chains = n_chains, num_cores = n_cores)

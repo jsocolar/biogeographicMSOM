@@ -13,23 +13,23 @@ functions{
         int r0 = start - 1;
         
         vector[len] lp;
-        vector[len] logit_psi;
-        row_vector[n_visit] logit_theta[len];
+        real logit_psi;
+        row_vector[n_visit] logit_theta;
         for (r in 1:len) {
             // calculate psi & theta
-            logit_psi[r] = b0[id_sp[r0+r]];
-            logit_theta[r] = d0[id_sp[r0+r]] + d1[id_sp[r0+r]]*vis_cov1[r0+r];
+            logit_psi = b0[id_sp[r0+r]];
+            logit_theta = d0[id_sp[r0+r]] + d1[id_sp[r0+r]]*vis_cov1[r0+r];
             // likelihood
             if (Q[r0 + r] == 1) 
-                lp[r] = log_inv_logit(logit_psi[r]) +
-                    bernoulli_logit_lpmf(det_slice[r] | logit_theta[r]);
+                lp[r] = log_inv_logit(logit_psi) +
+                    bernoulli_logit_lpmf(det_slice[r] | logit_theta);
             else lp[r] = log_sum_exp(
-                log_inv_logit(logit_psi[r]) +
-                    log1m_inv_logit(logit_theta[r, 1]) +
-                    log1m_inv_logit(logit_theta[r, 2]) +
-                    log1m_inv_logit(logit_theta[r, 3]) +
-                    log1m_inv_logit(logit_theta[r, 4]),
-                log1m_inv_logit(logit_psi[r]));
+                log_inv_logit(logit_psi) +
+                    log1m_inv_logit(logit_theta[1]) +
+                    log1m_inv_logit(logit_theta[2]) +
+                    log1m_inv_logit(logit_theta[3]) +
+                    log1m_inv_logit(logit_theta[4]),
+                log1m_inv_logit(logit_psi));
         } 
         return sum(lp);
     }
