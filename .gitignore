@@ -38,3 +38,8 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 .Rproj.user
+
+# cluster-specific stuff
+*.RProj
+submit_job.sh
+/runInfo/
