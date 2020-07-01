@@ -1,14 +1,36 @@
 # Run full BBS occupancy analysis
-library(cmdstanr)
-library(posterior)
+library("cmdstanr")
+library("posterior")
 
 # # The next three lines only need to be run (in order) once.
 # source('/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/data_prep/bbs_import.R')
 # source('/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/data_prep/range_maps.R')
 # source('/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/data_prep/format_for_occupancy.R')
 
-setwd('/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM')
+##### Sort directories and core/thread info ####
+if(grepl("bo1scm", getwd())) {
+    # reminder: run this script from the *code* directory (which then gets switched- 
+    # too much of a headache to run bash from data directory, so do it this way).
+    # get cores/threads from bash
+    cpu_info <- as.numeric(commandArgs(T))
+    n_cores <- n_chains <- cpu_info[1]
+    n_threads <- cpu_info[2]
+    # set directory
+    setwd("../data_bMSOM")
+    code_dir <- "../biogeographicMSOM/"
+} else {
+    setwd('/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM')
+    code_dir <- "/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/"
+    n_cores <- n_chains <- 4
+    n_threads <- n_cores*2
+}
+
+# set cores/threads
+set_num_threads(n_threads)
+
+# read data
 flattened_data <- readRDS('flattened_data.RDS')
+
 
 # We consider three classes of model:  
 # The first class, defined by `bbs_bufferclip <- cmdstan_model(...)`, contains no occupancy covariates. 
@@ -34,7 +56,7 @@ flattened_data <- readRDS('flattened_data.RDS')
 #   me whether we'll ultimately want to try none, few, or many possibile functional forms of this sort.
 
 ##### Class 1 #####
-bbs_bufferclip <- cmdstan_model("/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/stan_files/bufferclip_BBS.stan",
+bbs_bufferclip <- cmdstan_model(paste0(code_dir, "stan_files/bufferclip_BBS.stan"),
                                 threads = T, force_recompile = T)
 
 # 150 km buffer clip
@@ -49,9 +71,8 @@ bufferclip_data_stan <- list(n_species = max(flattened_data$sp_id),
                              det_data = bufferclip_data[,c(1,2,4,5)],    # We withold visit 3 for validation
                              grainsize = 1)
 
-n_cores <- n_chains <- 4
-set_num_threads(2)
-bbs_bufferclip_fit <- bbs_bufferclip$sample(data = bufferclip_data_stan, num_warmup = 1000, num_samples = 2000,
+bbs_bufferclip_fit <- bbs_bufferclip$sample(data = bufferclip_data_stan,
+                                            num_warmup = 1000, num_samples = 2000,
                                             num_chains = n_chains, num_cores = n_cores)
 saveRDS(bbs_bufferclip_fit, 'bbs_bufferclip_fit.RDS')
 
@@ -66,16 +87,15 @@ naive_data_stan <-list(n_species = max(flattened_data$sp_id),
                        det_data = flattened_data[,c(1,2,4,5)],
                        grainsize = 1)
 
-n_cores <- n_chains <- 4
-set_num_threads(2)
-bbs_naive_fit <- bbs_bufferclip$sample(data = naive_data_stan, num_warmup = 1000, num_samples = 2000,
-                                            num_chains = n_chains, num_cores = n_cores)
+bbs_naive_fit <- bbs_bufferclip$sample(data = naive_data_stan,
+                                       num_warmup = 1000, num_samples = 2000,
+                                       num_chains = n_chains, num_cores = n_cores)
 saveRDS(bbs_naive_fit, 'bbs_naive_fit.RDS')
 
 
 
 ##### Class 2 #####
-bbs_distance <- cmdstan_model("/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/stan_files/distance_BBS.stan",
+bbs_distance <- cmdstan_model(paste0(code_dir, "stan_files/distance_BBS.stan"),
                                 threads = T, force_recompile = T)
 
 # linear distance
@@ -90,7 +110,7 @@ lindist_data_stan <-list(n_species = max(flattened_data$sp_id),
                        det_data = flattened_data[,c(1,2,4,5)],
                        grainsize = 1)
 
-n_cores <- n_chains <- 4
-set_num_threads(2)
 bbs_lindist_fit <- bbs_distance$sample(data = lindist_data_stan, num_warmup = 1000, num_samples = 2000,
                                        num_chains = n_chains, num_cores = n_cores)
+
+saveRDS(bbs_lindist_fit, 'bbs_lindist_fit.RDS')
