@@ -188,6 +188,35 @@ plot(d_lp150, xlim = c(-9895, -9417), xlab = 'log-probability of observed data',
 polygon(d_lp150, col = 'coral')
 polygon(d_lpnaive, col = 'blue')
 
+
+d_lp150_Q0v0 <- density(colSums(lp_v3_150$Q0v0), bw = 2)
+d_lpnaive_Q0v0 <- density(colSums(lp_v3_naive$Q0v0), bw = 2)
+
+d_lp150_Q0v1 <- density(colSums(lp_v3_150$Q0v1), bw = 2)
+d_lpnaive_Q0v1 <- density(colSums(lp_v3_naive$Q0v1), bw = 2)
+
+d_lp150_Q1v0 <- density(colSums(lp_v3_150$Q1v0), bw = 3)
+d_lpnaive_Q1v0 <- density(colSums(lp_v3_naive$Q1v0), bw = 3)
+
+d_lp150_Q1v1 <- density(colSums(lp_v3_150$Q1v1), bw = 3)
+d_lpnaive_Q1v1 <- density(colSums(lp_v3_naive$Q1v1), bw = 3)
+
+plot(d_lp150_Q0v0, xlim = c(-400, -100), ylim = c(0,.1), xlab = 'log-probability of observed data', ylab = 'posterior density', main = '')
+polygon(d_lp150_Q0v0, col = 'coral')
+polygon(d_lpnaive_Q0v0, col = 'blue')
+
+plot(d_lp150_Q0v1, xlim = c(-3600, -2870), ylim = c(0,.028), xlab = 'log-probability of observed data', ylab = 'posterior density', main = '')
+polygon(d_lp150_Q0v1, col = 'coral')
+polygon(d_lpnaive_Q0v1, col = 'blue')
+
+plot(d_lp150_Q1v0, xlim = c(-3270, -3030), xlab = 'log-probability of observed data', ylab = 'posterior density', main = '')
+polygon(d_lp150_Q1v0, col = 'coral')
+polygon(d_lpnaive_Q1v0, col = rgb(0,0,1,.5), alpha = .3)
+
+plot(d_lp150_Q1v1, xlim = c(-3100, -2850), xlab = 'log-probability of observed data', ylab = 'posterior density', main = '')
+polygon(d_lp150_Q1v1, col = 'coral')
+polygon(d_lpnaive_Q1v1, col = rgb(0,0,1,.5), alpha = .3)
+
 # map of points colored by alpha diversity under the three models, and alpha-diversity difference between the models (pairs plot arrangement?)
 
 

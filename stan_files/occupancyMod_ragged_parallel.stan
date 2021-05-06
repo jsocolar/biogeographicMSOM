@@ -158,13 +158,13 @@ model {
     
     //Random Effects
     b0_raw ~ normal(0, 1);
-    to_vector(b1_raw) ~ normal(0, 1);
+    b1_raw ~ normal(0, 1);
     b4_raw ~ normal(0, 1);
     b5_raw ~ normal(0, 1);
     b6_raw ~ normal(0, 1);
     
     d0_raw ~ normal(0, 1);
-    to_vector(d1_raw) ~ normal(0, 1);
+    d1_raw ~ normal(0, 1);
     d4_raw ~ normal(0, 1);
     d5_raw ~ normal(0, 1);
 }
