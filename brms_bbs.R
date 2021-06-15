@@ -1,8 +1,7 @@
 # Run full BBS occupancy analysis
-library("cmdstanr")
+library("brms")
 library("posterior")
 library("loo")
-opencl_options <- list(stan_opencl = TRUE, opencl_platform_id = 0, opencl_device_id = 1)
 
 # # The next three lines only need to be run (in order) once.
 # source('/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/data_prep/bbs_import.R')
@@ -11,26 +10,28 @@ opencl_options <- list(stan_opencl = TRUE, opencl_platform_id = 0, opencl_device
 
 ##### Sort directories and core/thread info ####
 if(grepl("bo1scm", getwd())) {
-    # reminder: run this script from the *code* directory (which then gets switched- 
-    # too much of a headache to run bash from data directory, so do it this way).
-    # get cores/threads from bash
-    cpu_info <- as.numeric(commandArgs(T))
-    n_cores <- n_chains <- cpu_info[1]
-    n_threads <- cpu_info[2]
-    # set directory
-    setwd("../data_bMSOM")
-    code_dir <- "../biogeographicMSOM/"
+  # reminder: run this script from the *code* directory (which then gets switched- 
+  # too much of a headache to run bash from data directory, so do it this way).
+  # get cores/threads from bash
+  cpu_info <- as.numeric(commandArgs(T))
+  n_cores <- n_chains <- cpu_info[1]
+  n_threads <- cpu_info[2]
+  # set directory
+  setwd("../data_bMSOM")
+  code_dir <- "../biogeographicMSOM/"
 } else {
-    setwd('/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM')
-    code_dir <- "/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/"
-    n_cores <- n_chains <- 4
-    n_threads <- n_cores*2
+  setwd('/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM')
+  code_dir <- "/Users/jacobsocolar/Dropbox/Work/Code/Occupancy/biogeographicMSOM/"
+  n_cores <- n_chains <- 4
+  n_threads <- n_cores*2
 }
 
 # read data
 flattened_data <- readRDS('flattened_data_2018.RDS')
+flattened_data$elev_scaled <- as.numeric(scale(flattened_data$elev))
 fd2 <- flattened_data[order(flattened_data$Q, decreasing = T),]
-
+fd3 <- flattened_data[,c("N", "species", "site", "elev_scaled", "distance", "distance_scaled", "distance_transformed")]
+fd3$trials <- 5
 # We consider two classes of model:  
 # The first class, defined by `bbs_naive <- cmdstan_model(...)`, contains just elevation as an occupancy 
 #   covariate. 
@@ -40,23 +41,30 @@ fd2 <- flattened_data[order(flattened_data$Q, decreasing = T),]
 #   models.
 
 ##### Class 1 #####
+prior1 <- c(set_prior("logistic(0, 1)", class = "Intercept"), 
+            set_prior("normal(0, 10)", class = "sd"), 
+            set_prior("normal(0, 10)", class = "b"))
+bbs_naive <- brm(bf(N | trials(trials) ~ elev_scaled + (1 + elev_scaled |b| species), zi ~ (1 |b| species)), 
+                 data = fd3, family = zero_inflated_binomial(), 
+                 prior = prior1, backend = 'cmdstanr')
+
 bbs_naive <- cmdstan_model(paste0(code_dir, "stan_files/naive.stan"), cpp_options = opencl_options)
 
 # naive model (no clip)
 naive_data_stan <-list(
-    n_visit = 5, 
-    n_species = max(fd2$sp_id),
-    n_tot = nrow(fd2),
-    id_sp = fd2$sp_id,
-    Q = fd2$Q,
-    elev = (fd2$elev - mean(fd2$elev))/sd(fd2$elev),
-    det_data = rowSums(fd2[,c("v1", "v2", "v3", "v4", "v5")])
+  n_visit = 5, 
+  n_species = max(fd2$sp_id),
+  n_tot = nrow(fd2),
+  id_sp = fd2$sp_id,
+  Q = fd2$Q,
+  elev = (fd2$elev - mean(fd2$elev))/sd(fd2$elev),
+  det_data = rowSums(fd2[,c("v1", "v2", "v3", "v4", "v5")])
 )
 
 bbs_naive_fit <- bbs_naive$sample(data = naive_data_stan,
-                                       iter_warmup = 1000, iter_sampling = 1000,
-                                       chains = 4, parallel_chains = 4, save_warmup = T, 
-                                       output_dir = "/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/stan_outputs")
+                                  iter_warmup = 1000, iter_sampling = 1000,
+                                  chains = 4, parallel_chains = 4, save_warmup = T, 
+                                  output_dir = "/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/stan_outputs")
 
 saveRDS(bbs_naive_fit, 'bbs_naive_fit.RDS')
 
@@ -73,31 +81,31 @@ saveRDS(bbs_naive_loo, 'bbs_naive_loo.RDS')
 bbs_distance2 <- cmdstan_model(paste0(code_dir, "stan_files/distance_BBS_v2m1.stan"), cpp_options = opencl_options)
 # linear distance
 dist_data_stan <-list(
-    n_visit = 5, 
-    n_species = max(fd2$sp_id),
-    n_tot = nrow(fd2),
-    id_sp = fd2$sp_id,
-    Q = fd2$Q,
-    dist = fd2$distance_transformed,
-    elev = (fd2$elev - mean(fd2$elev))/sd(fd2$elev),
-    det_data = rowSums(fd2[,c("v1", "v2", "v3", "v4", "v5")])
+  n_visit = 5, 
+  n_species = max(fd2$sp_id),
+  n_tot = nrow(fd2),
+  id_sp = fd2$sp_id,
+  Q = fd2$Q,
+  dist = fd2$distance_transformed,
+  elev = (fd2$elev - mean(fd2$elev))/sd(fd2$elev),
+  det_data = rowSums(fd2[,c("v1", "v2", "v3", "v4", "v5")])
 )
 
 bbs_dist_fit <- bbs_distance2$sample(data = dist_data_stan, iter_warmup = 1000, iter_sampling = 1000,
-                                       chains = 4, parallel_chains = 4, save_warmup = T, 
-                                       output_dir = "/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/stan_outputs")
+                                     chains = 4, parallel_chains = 4, save_warmup = T, 
+                                     output_dir = "/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/stan_outputs")
 
 
 ##### Class 2 with clip #####
 dist_data_stan <-list(
-    n_visit = 5, 
-    n_species = max(fd3$sp_id),
-    n_tot = nrow(fd3),
-    id_sp = fd3$sp_id,
-    Q = fd3$Q,
-    dist = fd3$distance_transformed,
-    elev = (fd3$elev - mean(fd3$elev))/sd(fd3$elev),
-    det_data = rowSums(fd3[,c("v1", "v2", "v3", "v4", "v5")])
+  n_visit = 5, 
+  n_species = max(fd3$sp_id),
+  n_tot = nrow(fd3),
+  id_sp = fd3$sp_id,
+  Q = fd3$Q,
+  dist = fd3$distance_transformed,
+  elev = (fd3$elev - mean(fd3$elev))/sd(fd3$elev),
+  det_data = rowSums(fd3[,c("v1", "v2", "v3", "v4", "v5")])
 )
 
 
@@ -116,8 +124,8 @@ bdf_summary <- parsummarise_draws(bbs_dist_fit$draws(), n_cores = 4, n_chunks = 
 
 
 bbs_lindist_fit2 <- bbs_distance2$sample(data = lindist_data_stan, iter_warmup = 1000, iter_sampling = 1000,
-                                       chains = 4, parallel_chains = 4, save_warmup = T, 
-                                       output_dir = "/Users/JacobSocolar/Desktop")
+                                         chains = 4, parallel_chains = 4, save_warmup = T, 
+                                         output_dir = "/Users/JacobSocolar/Desktop")
 saveRDS(bbs_lindist_fit2, 'bbs_lindist_fit2.RDS')
 
 
