@@ -4,11 +4,61 @@
 year <- 2018
 
 library('sf')
+library('ggplot2')
 `%ni%` <- Negate(`%in%`)
 setwd('/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM')
 AEAstring <- "+proj=aea +lat_1=29.5 +lat_2=45.5 +lat_0=37.5 +lon_0=-96 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
 
+states <- raster::getData(country="USA", level=1)
+provinces <- raster::getData(country="Canada", level=1)
+estados <- raster::getData(country="Mexico", level=1)
+
+states2 <- states[states$NAME_1 != "Hawaii", ]
+
+states_sf <- st_as_sf(states2)
+us_sf <- st_union(states_sf)
+
+provinces_sf <- st_as_sf(provinces)
+ca_sf <- st_union(provinces_sf)
+
+estados_sf <- st_as_sf(estados)
+mx_sf <- st_union(estados_sf)
+
+n_am_sf <- st_union(us_sf, mx_sf)
+n_am_sf <- st_union(n_am_sf, ca_sf)
+
+n_am_AEA <- st_transform(n_am_sf, AEAstring)
+
+n_am_buffin <- st_buffer(n_am_AEA, -30000)
+
+saveRDS(n_am_buffin, "/Users/JacobSocolar/Desktop/n_am_buffin.Rdata")
+n_am_buffin <- readRDS("/Users/JacobSocolar/Desktop/n_am_buffin.Rdata")
+
+lakes <- st_read("/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/great_lakes/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10_shp/HydroLAKES_polys_v10.shp")
+big_lakes <- lakes[lakes$Continent == "North America" & lakes$Lake_area > 1000, ]
+big_lakes <- st_union(st_make_valid(big_lakes))
+big_lakes <- st_transform(big_lakes, AEAstring)
+
+big_lakes_buffout <- st_buffer(big_lakes, 30000)
+
+bc <- st_read("/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/great_lakes/coastal_bc.kml")
+la <- st_read("/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/great_lakes/coastal_la.kml")
+sl <- st_read("/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/great_lakes/st_lawrence_snippet.kml")
+extra_clip <- st_union(bc, la)
+extra_clip <- st_union(extra_clip, sl)
+extra_clip <- st_transform(extra_clip, AEAstring)
+
+n_am_map <- st_difference(n_am_buffin, big_lakes_buffout)
+n_am_map <- st_difference(n_am_map, extra_clip)
+
+plot(n_am_map)
+saveRDS(n_am_map, "/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/n_am_map_buffin.Rdata")
+
+
+
+###########
 # Load warbler BBS data, update taxonomy, and create sf object for sites
+n_am_map <- readRDS("/Users/jacobsocolar/Dropbox/Work/Occupancy/biogeographicMSOM/n_am_map_buffin.Rdata")
 warbler_array <- readRDS(paste0('warbler_', year, '_array.RDS'))
 detection_array <- warbler_array$detection_array
 species <- warbler_array$species
@@ -26,13 +76,16 @@ warbler_breeding <- st_transform(warbler_breeding_prelim, AEAstring)
 # Get distances from each point to the range of each species (based on BirdLife maps)
 distances_allpoints <- matrix(data = NA, nrow = nrow(sites), ncol = nrow(species))
 for(k in 1:nrow(species)){
+  print(k)
   species_range <- st_union(st_make_valid(warbler_breeding[warbler_breeding$SCINAME == species$SCINAME[k], ]))
   species_border <- st_cast(species_range, to = "MULTILINESTRING")
-  distances <- as.numeric(st_distance(sites, species_border)) *
-    (2*(as.numeric(st_distance(sites, species_range))>0) - 1) # This second line second part gives positive distances for 
-                                                              # outside-of-range and negative distances for in-range.  Turns 
-                                                              # out that as.numeric(st_distance(sites, species_range))>0) is 
-                                                              # much faster than !st_within(sites, species_range)
+  species_border_crop <- st_intersection(species_border, n_am_map)
+  distances <- (as.numeric(st_distance(sites, species_range)) > 0) * as.numeric(st_distance(sites, species_border)) -
+    (as.numeric(st_distance(sites, species_range)) <= 0) * as.numeric(st_distance(sites, species_border_crop))
+    
+# Positive distances for outside-of-range and negative distances for in-range.  Turns 
+# out that as.numeric(st_distance(sites, species_range))>0) is 
+# much faster than st_within(sites, species_range)
   distances_allpoints[, k] <- distances
 }
 
@@ -172,7 +225,7 @@ for(k in 1:nrow(species)){
 # rangemap_distances <- list(distances = distances_allpoints, 
 #                            distances_updated = distances_allpoints_updated)
 rangemap_distances <- distances_allpoints
-saveRDS(rangemap_distances, file = paste0('rangemap_distances_2way_', year, '.RDS'))
+saveRDS(rangemap_distances, file = paste0('rangemap_distances_2way_coastclip', year, '.RDS'))
 
 
 

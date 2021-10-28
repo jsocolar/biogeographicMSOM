@@ -37,7 +37,7 @@ ggplot(sites_prelim) + geom_sf(aes(col=elev_ALOS))
 
 sites <- st_transform(sites_prelim, AEAstring)
 
-rangemap_distances <- readRDS(paste0('rangemap_distances_2way_', year, '.RDS'))
+rangemap_distances <- readRDS(paste0('rangemap_distances_2way_coastclip', year, '.RDS'))
 distances <- rangemap_distances
 # distances <- rangemap_distances$distances
 # distances_updated <- rangemap_distances$distances_updated
@@ -56,19 +56,21 @@ flattened_data$distance <- as.vector(distances)
 flattened_data$elev <- rep(sites$elev_ALOS, nrow(species))
 flattened_data$Q <- rowSums(flattened_data[,c(1:5)]) > 0
 flattened_data$N <- rowSums(flattened_data[,c(1:5)])
-flattened_data$distance_scaled <- flattened_data$distance/sd(flattened_data$distance)
+flattened_data$distance_scaled <- flattened_data$distance/400000
 p <- dd <- vector()
+dev.off()
 for(sp in unique(flattened_data$species)){
-  fd_sp <- flattened_data[flattened_data$species == sp, ]
+  fd_sp <- flattened_data#[flattened_data$species == sp, ]
   for(i in 1:50){
     j <- -2 + 7*i/50
     j0 <- j - 7/50
     p[i] <- mean(fd_sp$Q[fd_sp$distance_scaled>j0 & fd_sp$distance_scaled < j])
     dd[i] <- j
   }
-  plot(p ~ boot::inv.logit(dd*10), main = sp)
+  dd2 <- boot::inv.logit(dd*3)
+  plot(boot::logit(p) ~ dd2, main = sp)
 }
-flattened_data$distance_transformed <- boot::inv.logit(flattened_data$distance_scaled*10)
+flattened_data$distance_transformed <- boot::inv.logit(flattened_data$distance_scaled*3)
 
 
 saveRDS(flattened_data, file = paste0('flattened_data_', year, '.RDS'))
